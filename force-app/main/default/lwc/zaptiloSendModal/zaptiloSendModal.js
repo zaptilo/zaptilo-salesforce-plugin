@@ -18,14 +18,27 @@ export default class ZaptiloSendModal extends LightningElement {
     @track errorMessage = '';
 
     connectedCallback() {
+        // eslint-disable-next-line no-console
+        console.log('[Zaptilo] modal opened, recordId=', this.recordId);
         this.bootstrap();
     }
 
     async bootstrap() {
+        if (!this.recordId) {
+            this.errorMessage = 'No record id was passed to the Send WhatsApp action.';
+            this.loading = false;
+            return;
+        }
         try {
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] loading record context…');
             this.context = await getRecordContext({ recordId: this.recordId });
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] context=', JSON.stringify(this.context));
             try {
                 const raw = await getTemplates();
+                // eslint-disable-next-line no-console
+                console.log('[Zaptilo] templates count=', (raw || []).length);
                 this.templates = (raw || []).map((t) => ({
                     label: `${t.name} (${t.language || 'en'})`,
                     value: t.name,
@@ -35,6 +48,8 @@ export default class ZaptiloSendModal extends LightningElement {
                 this.errorMessage = 'Could not load templates: ' + this.errMsg(e);
             }
         } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[Zaptilo] bootstrap error', e);
             this.errorMessage = this.errMsg(e);
         } finally {
             this.loading = false;

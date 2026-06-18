@@ -1,86 +1,86 @@
 <template>
-    <lightning-card title="Send WhatsApp" icon-name="utility:chat">
-        <div class="slds-p-around_medium">
-            <template if:true={loading}>
+    <div class="slds-p-around_medium">
+        <template if:true={loading}>
+            <div class="slds-align_absolute-center slds-p-vertical_large">
                 <lightning-spinner alternative-text="Loading…" size="small"></lightning-spinner>
+            </div>
+        </template>
+
+        <template if:false={loading}>
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-bottom_small" role="alert">
+                    {errorMessage}
+                </div>
             </template>
 
-            <template if:false={loading}>
-                <template if:true={errorMessage}>
-                    <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-bottom_small" role="alert">
-                        {errorMessage}
+            <template if:true={context}>
+                <p class="slds-text-body_regular slds-m-bottom_small">
+                    Sending to <strong>{context.name}</strong>
+                    <template if:true={context.phone}>
+                        &nbsp;at <code>{context.phone}</code>
+                    </template>
+                </p>
+
+                <template if:true={optedOutMessage}>
+                    <div class="slds-notify slds-notify_alert slds-theme_warning slds-m-bottom_small" role="alert">
+                        {optedOutMessage}
                     </div>
                 </template>
 
-                <template if:true={context}>
-                    <p class="slds-text-body_regular slds-m-bottom_small">
-                        Sending to <strong>{context.name}</strong>
-                        <template if:true={context.phone}>
-                            &nbsp;at <code>{context.phone}</code>
-                        </template>
-                    </p>
+                <lightning-combobox
+                    name="template"
+                    label="Template"
+                    value={selectedTemplate}
+                    placeholder="Select a template"
+                    options={templateOptions}
+                    onchange={handleTemplateChange}
+                    required
+                ></lightning-combobox>
 
-                    <template if:true={optedOutMessage}>
-                        <div class="slds-notify slds-notify_alert slds-theme_warning slds-m-bottom_small" role="alert">
-                            {optedOutMessage}
-                        </div>
-                    </template>
-
-                    <lightning-combobox
-                        name="template"
-                        label="Template"
-                        value={selectedTemplate}
-                        placeholder="Select a template"
-                        options={templateOptions}
-                        onchange={handleTemplateChange}
-                        required
-                    ></lightning-combobox>
-
-                    <template if:true={selectedTemplate}>
-                        <div class="slds-m-top_small">
-                            <lightning-input
-                                type="text"
-                                label="Variable 1"
-                                data-index="1"
-                                onchange={handleVariableChange}
-                                placeholder="Optional"
-                            ></lightning-input>
-                            <lightning-input
-                                type="text"
-                                label="Variable 2"
-                                data-index="2"
-                                onchange={handleVariableChange}
-                                placeholder="Optional"
-                            ></lightning-input>
-                            <lightning-input
-                                type="text"
-                                label="Variable 3"
-                                data-index="3"
-                                onchange={handleVariableChange}
-                                placeholder="Optional"
-                            ></lightning-input>
-                            <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
-                                Variables map to the numbered placeholders in your template body.
-                                Leave blank if the template has no variables.
-                            </p>
-                        </div>
-                    </template>
+                <template if:true={selectedTemplate}>
+                    <div class="slds-m-top_small">
+                        <lightning-input
+                            type="text"
+                            label="Variable 1"
+                            data-index="1"
+                            onchange={handleVariableChange}
+                            placeholder="Optional"
+                        ></lightning-input>
+                        <lightning-input
+                            type="text"
+                            label="Variable 2"
+                            data-index="2"
+                            onchange={handleVariableChange}
+                            placeholder="Optional"
+                        ></lightning-input>
+                        <lightning-input
+                            type="text"
+                            label="Variable 3"
+                            data-index="3"
+                            onchange={handleVariableChange}
+                            placeholder="Optional"
+                        ></lightning-input>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                            Variables map to numbered placeholders in your template body.
+                            Leave blank if the template has no variables.
+                        </p>
+                    </div>
                 </template>
             </template>
-        </div>
 
-        <div slot="footer" class="slds-text-align_right">
-            <lightning-button
-                label="Cancel"
-                onclick={handleClose}
-                class="slds-m-right_x-small"
-            ></lightning-button>
-            <lightning-button
-                label={sendButtonLabel}
-                variant="brand"
-                onclick={handleSend}
-                disabled={sendDisabled}
-            ></lightning-button>
-        </div>
-    </lightning-card>
+            <div class="slds-m-top_medium slds-text-align_right">
+                <lightning-button
+                    label="Cancel"
+                    onclick={handleClose}
+                    class="slds-m-right_x-small"
+                ></lightning-button>
+                <lightning-button
+                    label={sendButtonLabel}
+                    variant="brand"
+                    onclick={handleSend}
+                    disabled={sendDisabled}
+                ></lightning-button>
+            </div>
+        </template>
+    </div>
 </template>
