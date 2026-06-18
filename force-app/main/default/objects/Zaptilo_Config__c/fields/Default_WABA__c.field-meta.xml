@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Default_WABA__c</fullName>
+    <description>Default WhatsApp Business Account ID or phone number to send from. Optional. If blank, Zaptilo uses the org's primary WABA.</description>
+    <externalId>false</externalId>
+    <label>Default WABA</label>
+    <length>64</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

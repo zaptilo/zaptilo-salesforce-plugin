@@ -1,0 +1,65 @@
+<template>
+    <lightning-card title="Zaptilo Settings" icon-name="utility:settings">
+        <div class="slds-p-around_medium">
+            <template if:true={loading}>
+                <lightning-spinner alternative-text="Loading…" size="small"></lightning-spinner>
+            </template>
+
+            <template if:false={loading}>
+                <p class="slds-text-body_regular slds-m-bottom_small">
+                    Connect this Salesforce org to your Zaptilo workspace. Find your API token at
+                    <a href="https://web.zaptilo.ai" target="_blank" rel="noopener">web.zaptilo.ai</a>
+                    → Settings → API Keys.
+                </p>
+
+                <template if:true={configured}>
+                    <div class="slds-notify slds-notify_alert slds-theme_success slds-m-bottom_small" role="alert">
+                        Currently configured. Token: <code>{maskedTokenHint}</code>
+                    </div>
+                </template>
+
+                <lightning-input
+                    type="password"
+                    label="API Token"
+                    value={apiToken}
+                    placeholder="Paste a new token to update"
+                    onchange={handleTokenChange}
+                    class="slds-m-bottom_small"
+                ></lightning-input>
+
+                <lightning-input
+                    type="url"
+                    label="Base URL"
+                    value={baseUrl}
+                    onchange={handleBaseUrlChange}
+                    class="slds-m-bottom_small"
+                    field-level-help="Leave the default unless you self-host Zaptilo."
+                ></lightning-input>
+
+                <lightning-input
+                    type="text"
+                    label="Default WABA / phone (optional)"
+                    value={defaultWaba}
+                    onchange={handleWabaChange}
+                    placeholder="Leave blank to use Zaptilo workspace default"
+                    class="slds-m-bottom_medium"
+                ></lightning-input>
+
+                <div class="slds-text-align_right">
+                    <lightning-button
+                        label="Test connection"
+                        onclick={handleTest}
+                        disabled={testing}
+                        class="slds-m-right_x-small"
+                    ></lightning-button>
+                    <lightning-button
+                        label="Save"
+                        variant="brand"
+                        onclick={handleSave}
+                        disabled={saving}
+                    ></lightning-button>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

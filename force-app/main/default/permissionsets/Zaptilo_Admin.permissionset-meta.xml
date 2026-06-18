@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Full Zaptilo access: send messages, manage settings, and read/write the Zaptilo configuration.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Zaptilo Admin</label>
+    <license>Salesforce</license>
+
+    <applicationVisibilities>
+        <application>Zaptilo</application>
+        <visible>true</visible>
+    </applicationVisibilities>
+
+    <classAccesses>
+        <apexClass>ZaptiloAPI</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZaptiloSendController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZaptiloSettingsController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <objectPermissions>
+        <object>WhatsApp_Message__c</object>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <customSettingAccesses>
+        <name>Zaptilo_Config__c</name>
+        <enabled>true</enabled>
+    </customSettingAccesses>
+
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Zaptilo_Config__c.API_Token__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Zaptilo_Config__c.Base_URL__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Zaptilo_Config__c.Default_WABA__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Contact.Do_Not_WhatsApp__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Lead.Do_Not_WhatsApp__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <tabSettings>
+        <tab>Zaptilo_Settings</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+</PermissionSet>

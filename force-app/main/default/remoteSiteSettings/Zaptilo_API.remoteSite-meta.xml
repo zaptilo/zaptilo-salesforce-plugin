@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Required for Apex callouts from Zaptilo plugin to the Zaptilo WhatsApp API.</description>
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://web.zaptilo.ai</url>
+</RemoteSiteSetting>

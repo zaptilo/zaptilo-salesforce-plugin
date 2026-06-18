@@ -1,0 +1,28 @@
+# SFDX
+.sfdx/
+.sf/
+.localdevserver/
+.vscode/
+.idea/
+
+# Build artifacts
+deploy-options.json
+**/.eslintcache
+
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+yarn.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Tooling
+.prettierrc.local
+*.tmp
+*.swp

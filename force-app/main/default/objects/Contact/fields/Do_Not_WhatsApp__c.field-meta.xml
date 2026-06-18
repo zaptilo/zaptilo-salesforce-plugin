@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Do_Not_WhatsApp__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>If checked, Zaptilo plugin will never send WhatsApp messages to this contact, even from a Quick Action or Flow.</description>
+    <externalId>false</externalId>
+    <label>Do Not WhatsApp</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>
