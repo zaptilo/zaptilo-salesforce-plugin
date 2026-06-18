@@ -41,16 +41,6 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>WhatsApp_Message__c.Phone__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>WhatsApp_Message__c.Direction__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
         <field>WhatsApp_Message__c.Body__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -83,6 +73,6 @@
 
     <tabSettings>
         <tab>Zaptilo_Settings</tab>
-        <visibility>Hidden</visibility>
+        <visibility>None</visibility>
     </tabSettings>
 </PermissionSet>
