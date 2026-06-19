@@ -6,25 +6,68 @@ import getTemplates from '@salesforce/apex/ZaptiloSendController.getTemplates';
 import sendTemplate from '@salesforce/apex/ZaptiloSendController.sendTemplate';
 
 // Bumped each time we redeploy this file — confirms which version the browser actually loaded.
-const ZAPTILO_BUILD = 'v0.1-build8';
+const ZAPTILO_BUILD = 'v0.1-build12';
+
+// Reject the promise after `ms` so a hung Apex callout never freezes the modal forever.
+function withTimeout(promise, ms, label) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} took longer than ${ms}ms — aborted`)), ms);
+        promise.then(
+            (value) => { clearTimeout(timer); resolve(value); },
+            (err) => { clearTimeout(timer); reject(err); }
+        );
+    });
+}
 // eslint-disable-next-line no-console
 console.log('[Zaptilo] zaptiloSendModal module loaded —', ZAPTILO_BUILD);
 
-// Look at every component of a WhatsApp template and find the BODY text, then count distinct {{N}} placeholders.
-function extractVariableIndexes(template) {
-    if (!template) return [];
-    const components = template.components || [];
-    let bodyText = '';
-    for (const c of components) {
-        const type = (c.type || '').toString().toUpperCase();
-        if (type === 'BODY') {
-            bodyText = c.text || c.body || '';
-            break;
+// Zaptilo wraps the Meta template shape inside a stringified `metadata` field.
+// Parse it once, cache parsed result on the template object so we don't re-parse on every render.
+function parsedMetadata(template) {
+    if (!template) return null;
+    if (template._parsedMetadata !== undefined) return template._parsedMetadata;
+    if (typeof template.metadata === 'string' && template.metadata.length > 0) {
+        try {
+            template._parsedMetadata = JSON.parse(template.metadata);
+        } catch (e) {
+            template._parsedMetadata = null;
+        }
+    } else if (template.metadata && typeof template.metadata === 'object') {
+        template._parsedMetadata = template.metadata;
+    } else {
+        template._parsedMetadata = null;
+    }
+    return template._parsedMetadata;
+}
+
+// Walk the template payload and find the BODY text (where {{N}} placeholders live).
+function findBodyText(template) {
+    if (!template) return '';
+    const meta = parsedMetadata(template);
+    const components = (meta && meta.components) || template.components || [];
+    if (Array.isArray(components)) {
+        for (const c of components) {
+            const type = (c.type || '').toString().toUpperCase();
+            if (type === 'BODY') {
+                if (c.text) return c.text;
+                if (c.body) return c.body;
+            }
         }
     }
-    // Some Zaptilo workspaces store the body in a flat `body` field instead of `components`.
-    if (!bodyText && template.body) bodyText = template.body;
+    if (template.body) return template.body;
+    return '';
+}
 
+function findLanguageCode(template) {
+    if (!template) return 'en';
+    const meta = parsedMetadata(template);
+    if (meta && meta.language) return meta.language;
+    if (template.language) return template.language;
+    return 'en';
+}
+
+function extractVariableIndexes(template) {
+    const bodyText = findBodyText(template);
     const matches = bodyText.match(/{{\s*(\d+)\s*}}/g) || [];
     const indexes = new Set();
     for (const m of matches) {
@@ -35,7 +78,21 @@ function extractVariableIndexes(template) {
 }
 
 export default class ZaptiloSendModal extends LightningElement {
-    @api recordId;
+    // recordId via getter/setter so we can react the moment the Quick Action framework injects it.
+    _recordId;
+    @api
+    get recordId() { return this._recordId; }
+    set recordId(value) {
+        // eslint-disable-next-line no-console
+        console.log('[Zaptilo] recordId setter called with', value);
+        this._recordId = value;
+        if (value && !this._bootstrapped) {
+            this._bootstrapped = true;
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] bootstrapping from setter, recordId=', value);
+            this.bootstrap();
+        }
+    }
 
     @track loading = true;
     @track sending = false;
@@ -55,12 +112,11 @@ export default class ZaptiloSendModal extends LightningElement {
     }
 
     renderedCallback() {
-        // The Quick Action framework sets @api recordId AFTER connectedCallback fires.
-        // Bootstrap on the first render that has a recordId present.
-        if (!this._bootstrapped && this.recordId) {
+        // Belt-and-braces fallback: if for any reason the setter didn't fire, kick off here.
+        if (!this._bootstrapped && this._recordId) {
             this._bootstrapped = true;
             // eslint-disable-next-line no-console
-            console.log('[Zaptilo] bootstrapping with recordId=', this.recordId);
+            console.log('[Zaptilo] bootstrapping from renderedCallback, recordId=', this._recordId);
             this.bootstrap();
         }
     }
@@ -72,19 +128,39 @@ export default class ZaptiloSendModal extends LightningElement {
             return;
         }
         try {
-            this.context = await getRecordContext({ recordId: this.recordId });
-            try {
-                const raw = await getTemplates();
-                // eslint-disable-next-line no-console
-                console.log('[Zaptilo] templates raw=', JSON.stringify(raw));
-                this.templates = raw || [];
-            } catch (e) {
-                this.errorMessage = 'Could not load templates: ' + this.errMsg(e);
-            }
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] step 1: loading context…');
+            this.context = await withTimeout(
+                getRecordContext({ recordId: this.recordId }),
+                15000,
+                'Loading record context'
+            );
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] step 2: context loaded', this.context);
         } catch (e) {
             // eslint-disable-next-line no-console
-            console.error('[Zaptilo] bootstrap error', e);
+            console.error('[Zaptilo] context load failed', e);
             this.errorMessage = this.errMsg(e);
+            this.loading = false;
+            return;
+        }
+        try {
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] step 3: loading templates…');
+            const raw = await withTimeout(getTemplates(), 20000, 'Loading templates');
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] step 4: templates loaded count=', (raw || []).length);
+            // Dump the first template fully so we can see Zaptilo's actual payload shape.
+            if ((raw || []).length > 0) {
+                // eslint-disable-next-line no-console
+                console.log('[Zaptilo] first template payload:', JSON.stringify(raw[0], null, 2));
+            }
+            this.templates = raw || [];
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[Zaptilo] template load failed', e);
+            // Non-fatal — let the user know but still allow them to close the modal.
+            this.errorMessage = 'Could not load templates: ' + this.errMsg(e);
         } finally {
             this.loading = false;
         }
@@ -92,7 +168,7 @@ export default class ZaptiloSendModal extends LightningElement {
 
     get templateOptions() {
         return this.templates.map((t) => ({
-            label: `${t.name} (${t.language || 'en'})`,
+            label: `${t.name} (${findLanguageCode(t)})`,
             value: t.name
         }));
     }
@@ -141,7 +217,7 @@ export default class ZaptiloSendModal extends LightningElement {
     handleTemplateChange(event) {
         this.selectedTemplate = event.detail.value;
         const t = this.selectedTemplateObj;
-        this.language = (t && t.language) || 'en';
+        this.language = findLanguageCode(t);
         this.variables = {};
 
         // Inspect the template's body and build one input per {{N}} placeholder.
@@ -163,13 +239,7 @@ export default class ZaptiloSendModal extends LightningElement {
     refreshPreview() {
         const t = this.selectedTemplateObj;
         if (!t) { this.templatePreview = ''; return; }
-        let body = '';
-        const comps = t.components || [];
-        for (const c of comps) {
-            const type = (c.type || '').toString().toUpperCase();
-            if (type === 'BODY') { body = c.text || c.body || ''; break; }
-        }
-        if (!body && t.body) body = t.body;
+        const body = findBodyText(t);
         this.templatePreview = body.replace(/{{\s*(\d+)\s*}}/g, (_, n) => {
             return this.variables[n] || `{{${n}}}`;
         });

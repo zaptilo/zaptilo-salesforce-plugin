@@ -46,16 +46,30 @@ public with sharing class ZaptiloAPI {
             'name' => templateName,
             'language' => language
         };
+
+        // WhatsApp Cloud API expects components[].parameters[{type:'text', text:'...'}], sorted by variable index.
         if (variables != null && !variables.isEmpty()) {
-            List<Map<String, String>> components = new List<Map<String, String>>();
-            for (String key : variables.keySet()) {
-                components.add(new Map<String, String>{
-                    'type' => 'body',
-                    'index' => key,
-                    'value' => variables.get(key)
+            List<Integer> sortedKeys = new List<Integer>();
+            for (String k : variables.keySet()) {
+                try { sortedKeys.add(Integer.valueOf(k)); } catch (Exception e) {}
+            }
+            sortedKeys.sort();
+
+            List<Map<String, String>> parameters = new List<Map<String, String>>();
+            for (Integer key : sortedKeys) {
+                String val = variables.get(String.valueOf(key));
+                parameters.add(new Map<String, String>{
+                    'type' => 'text',
+                    'text' => val == null ? '' : val
                 });
             }
-            template.put('components', components);
+
+            template.put('components', new List<Object>{
+                new Map<String, Object>{
+                    'type' => 'body',
+                    'parameters' => parameters
+                }
+            });
         }
 
         Map<String, Object> body = new Map<String, Object>{
