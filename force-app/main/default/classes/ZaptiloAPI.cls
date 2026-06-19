@@ -140,16 +140,32 @@ public with sharing class ZaptiloAPI {
         try {
             Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
             Object data = parsed.get('data');
-            result.success = true;
+
+            // Zaptilo's send endpoints return HTTP 200 even when Meta rejected — the actual
+            // success / failure flag is on data.success. Dig in and surface failure messages.
             if (data instanceof Map<String, Object>) {
                 Map<String, Object> dataMap = (Map<String, Object>) data;
-                if (dataMap.containsKey('id')) {
-                    result.externalId = String.valueOf(dataMap.get('id'));
+
+                // Some endpoints wrap the message id under data.data; others put it on data directly.
+                Object innerData = dataMap.get('data');
+                Map<String, Object> idHolder = innerData instanceof Map<String, Object>
+                    ? (Map<String, Object>) innerData
+                    : dataMap;
+                if (idHolder.containsKey('id')) {
+                    result.externalId = String.valueOf(idHolder.get('id'));
                 }
-                if (dataMap.containsKey('status')) {
-                    result.status = String.valueOf(dataMap.get('status'));
+                if (idHolder.containsKey('status')) {
+                    result.status = String.valueOf(idHolder.get('status'));
+                }
+
+                if (dataMap.containsKey('success') && dataMap.get('success') == false) {
+                    String msg = dataMap.containsKey('message') ? String.valueOf(dataMap.get('message')) : 'Unknown error from WhatsApp';
+                    throw new ZaptiloException('WhatsApp rejected the message: ' + msg);
                 }
             }
+            result.success = true;
+        } catch (ZaptiloException e) {
+            throw e;
         } catch (Exception e) {
             // Response was 2xx but unparseable — still treat as success, leave externalId blank
             result.success = true;

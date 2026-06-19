@@ -1,8 +1,10 @@
 <template>
-    <div class="slds-p-around_medium">
+    <div class="slds-p-around_medium" style="min-height: 320px;">
+        <div class="slds-text-heading_small slds-m-bottom_small">Zaptilo • Send WhatsApp</div>
+
         <template if:true={loading}>
-            <div class="slds-align_absolute-center slds-p-vertical_large">
-                <lightning-spinner alternative-text="Loading…" size="small"></lightning-spinner>
+            <div class="slds-p-vertical_medium slds-align_absolute-center">
+                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
             </div>
         </template>
 
@@ -37,49 +39,38 @@
                     required
                 ></lightning-combobox>
 
-                <template if:true={selectedTemplate}>
+                <template if:true={hasVariableInputs}>
                     <div class="slds-m-top_small">
-                        <lightning-input
-                            type="text"
-                            label="Variable 1"
-                            data-index="1"
-                            onchange={handleVariableChange}
-                            placeholder="Optional"
-                        ></lightning-input>
-                        <lightning-input
-                            type="text"
-                            label="Variable 2"
-                            data-index="2"
-                            onchange={handleVariableChange}
-                            placeholder="Optional"
-                        ></lightning-input>
-                        <lightning-input
-                            type="text"
-                            label="Variable 3"
-                            data-index="3"
-                            onchange={handleVariableChange}
-                            placeholder="Optional"
-                        ></lightning-input>
-                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
-                            Variables map to numbered placeholders in your template body.
-                            Leave blank if the template has no variables.
-                        </p>
+                        <template for:each={variableInputs} for:item="v">
+                            <lightning-input
+                                key={v.key}
+                                type="text"
+                                label={v.label}
+                                data-index={v.index}
+                                onchange={handleVariableChange}
+                                placeholder="Required by template"
+                            ></lightning-input>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={hasNoVariableInputs}>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_small">
+                        This template has no variables.
+                    </p>
+                </template>
+
+                <template if:true={templatePreview}>
+                    <div class="slds-box slds-box_x-small slds-m-top_small slds-theme_shade">
+                        <div class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">Preview</div>
+                        <div class="slds-text-body_regular">{templatePreview}</div>
                     </div>
                 </template>
             </template>
 
             <div class="slds-m-top_medium slds-text-align_right">
-                <lightning-button
-                    label="Cancel"
-                    onclick={handleClose}
-                    class="slds-m-right_x-small"
-                ></lightning-button>
-                <lightning-button
-                    label={sendButtonLabel}
-                    variant="brand"
-                    onclick={handleSend}
-                    disabled={sendDisabled}
-                ></lightning-button>
+                <lightning-button label="Cancel" onclick={handleClose} class="slds-m-right_x-small"></lightning-button>
+                <lightning-button label={sendButtonLabel} variant="brand" onclick={handleSend} disabled={sendDisabled}></lightning-button>
             </div>
         </template>
     </div>
