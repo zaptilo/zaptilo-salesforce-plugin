@@ -187,16 +187,37 @@ public with sharing class ZaptiloAPI {
             if (data instanceof Map<String, Object>) {
                 Map<String, Object> dataMap = (Map<String, Object>) data;
 
-                // Some endpoints wrap the message id under data.data; others put it on data directly.
+                // Meta's reply shape (wrapped by Zaptilo): data.data.messages[0].id
+                // Older shape: data.data.id   Bulk shape: data.id
+                // Try them in order so we work with whichever endpoint variant we hit.
                 Object innerData = dataMap.get('data');
-                Map<String, Object> idHolder = innerData instanceof Map<String, Object>
-                    ? (Map<String, Object>) innerData
-                    : dataMap;
-                if (idHolder.containsKey('id')) {
-                    result.externalId = String.valueOf(idHolder.get('id'));
+                if (innerData instanceof Map<String, Object>) {
+                    Map<String, Object> innerMap = (Map<String, Object>) innerData;
+                    Object messages = innerMap.get('messages');
+                    if (messages instanceof List<Object> && !((List<Object>) messages).isEmpty()) {
+                        Object first = ((List<Object>) messages)[0];
+                        if (first instanceof Map<String, Object>) {
+                            Map<String, Object> firstMsg = (Map<String, Object>) first;
+                            if (firstMsg.containsKey('id')) {
+                                result.externalId = String.valueOf(firstMsg.get('id'));
+                            }
+                            if (firstMsg.containsKey('message_status')) {
+                                result.status = String.valueOf(firstMsg.get('message_status'));
+                            }
+                        }
+                    }
+                    if (String.isBlank(result.externalId) && innerMap.containsKey('id')) {
+                        result.externalId = String.valueOf(innerMap.get('id'));
+                    }
+                    if (String.isBlank(result.status) && innerMap.containsKey('status')) {
+                        result.status = String.valueOf(innerMap.get('status'));
+                    }
                 }
-                if (idHolder.containsKey('status')) {
-                    result.status = String.valueOf(idHolder.get('status'));
+                if (String.isBlank(result.externalId) && dataMap.containsKey('id')) {
+                    result.externalId = String.valueOf(dataMap.get('id'));
+                }
+                if (String.isBlank(result.status) && dataMap.containsKey('status')) {
+                    result.status = String.valueOf(dataMap.get('status'));
                 }
 
                 if (dataMap.containsKey('success') && dataMap.get('success') == false) {
