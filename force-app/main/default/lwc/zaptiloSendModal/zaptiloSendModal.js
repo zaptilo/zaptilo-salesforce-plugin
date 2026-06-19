@@ -6,7 +6,7 @@ import getTemplates from '@salesforce/apex/ZaptiloSendController.getTemplates';
 import sendTemplate from '@salesforce/apex/ZaptiloSendController.sendTemplate';
 
 // Bumped each time we redeploy this file — confirms which version the browser actually loaded.
-const ZAPTILO_BUILD = 'v0.1-build12';
+const ZAPTILO_BUILD = 'v0.1-build14';
 
 // Reject the promise after `ms` so a hung Apex callout never freezes the modal forever.
 function withTimeout(promise, ms, label) {
@@ -136,7 +136,14 @@ export default class ZaptiloSendModal extends LightningElement {
                 'Loading record context'
             );
             // eslint-disable-next-line no-console
-            console.log('[Zaptilo] step 2: context loaded', this.context);
+            console.log('[Zaptilo] step 2: context loaded —',
+                'name=', this.context && this.context.name,
+                'phone=', this.context && this.context.phone,
+                'objectType=', this.context && this.context.objectType,
+                'optedOut=', this.context && this.context.optedOut,
+                'linkedContactId=', this.context && this.context.linkedContactId);
+            // eslint-disable-next-line no-console
+            console.log('[Zaptilo] context JSON:', JSON.stringify(this.context));
         } catch (e) {
             // eslint-disable-next-line no-console
             console.error('[Zaptilo] context load failed', e);
@@ -251,13 +258,33 @@ export default class ZaptiloSendModal extends LightningElement {
 
     async handleSend() {
         if (!this.canSend) return;
+        // Guard: every variable the template declares must be filled. Sending an empty value
+        // is what triggers Meta's 132012 ("Parameter format does not match…") on positional templates.
+        for (const v of this.variableInputs) {
+            const filled = this.variables[v.index];
+            if (filled === undefined || filled === null || String(filled).trim() === '') {
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Fill all variables',
+                        message: `"${v.label}" is blank. WhatsApp templates need every variable populated.`,
+                        variant: 'warning'
+                    })
+                );
+                return;
+            }
+        }
         this.sending = true;
         try {
+            // Send variables in the exact order the template body declares them.
+            const orderedVars = {};
+            for (const v of this.variableInputs) {
+                orderedVars[v.index] = this.variables[v.index];
+            }
             await sendTemplate({
                 recordId: this.recordId,
                 templateName: this.selectedTemplate,
                 language: this.language,
-                variables: this.variables
+                variables: orderedVars
             });
             this.dispatchEvent(
                 new ShowToastEvent({

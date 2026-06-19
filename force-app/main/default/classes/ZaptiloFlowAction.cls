@@ -90,24 +90,62 @@ public with sharing class ZaptiloFlowAction {
             }
 
             String prefix = String.valueOf(r.recordId).substring(0, 3);
-            String phone, name, objectType;
+            String phone, name;
             Boolean optedOut = false;
+            Id contactLogId, leadLogId;
 
             if (prefix == '003') {
                 Contact c = [SELECT Name, Phone, MobilePhone, Do_Not_WhatsApp__c FROM Contact WHERE Id = :r.recordId LIMIT 1];
                 name = c.Name;
                 phone = String.isNotBlank(c.MobilePhone) ? c.MobilePhone : c.Phone;
                 optedOut = c.Do_Not_WhatsApp__c;
-                objectType = 'Contact';
+                contactLogId = c.Id;
             } else if (prefix == '00Q') {
                 Lead l = [SELECT Name, Phone, MobilePhone, Do_Not_WhatsApp__c FROM Lead WHERE Id = :r.recordId LIMIT 1];
                 name = l.Name;
                 phone = String.isNotBlank(l.MobilePhone) ? l.MobilePhone : l.Phone;
                 optedOut = l.Do_Not_WhatsApp__c;
-                objectType = 'Lead';
+                leadLogId = l.Id;
+            } else if (prefix == '001') {
+                Account a = [SELECT Name, Phone FROM Account WHERE Id = :r.recordId LIMIT 1];
+                name = a.Name;
+                phone = a.Phone;
+            } else if (prefix == '500') {
+                Case cs = [
+                    SELECT CaseNumber, ContactId, Contact.Name, Contact.Phone, Contact.MobilePhone, Contact.Do_Not_WhatsApp__c
+                    FROM Case WHERE Id = :r.recordId LIMIT 1
+                ];
+                if (cs.ContactId == null) {
+                    out.success = false;
+                    out.errorMessage = 'Case has no linked Contact';
+                    return out;
+                }
+                name = cs.Contact.Name + ' (Case ' + cs.CaseNumber + ')';
+                phone = String.isNotBlank(cs.Contact.MobilePhone) ? cs.Contact.MobilePhone : cs.Contact.Phone;
+                optedOut = cs.Contact.Do_Not_WhatsApp__c;
+                contactLogId = cs.ContactId;
+            } else if (prefix == '006') {
+                Opportunity opp = [SELECT Name FROM Opportunity WHERE Id = :r.recordId LIMIT 1];
+                List<OpportunityContactRole> roles = [
+                    SELECT ContactId, IsPrimary, Contact.Name, Contact.Phone, Contact.MobilePhone, Contact.Do_Not_WhatsApp__c
+                    FROM OpportunityContactRole
+                    WHERE OpportunityId = :r.recordId
+                    ORDER BY IsPrimary DESC NULLS LAST
+                    LIMIT 1
+                ];
+                if (roles.isEmpty()) {
+                    out.success = false;
+                    out.errorMessage = 'Opportunity has no Contact Roles';
+                    return out;
+                }
+                OpportunityContactRole role = roles[0];
+                name = role.Contact.Name + ' (' + opp.Name + ')';
+                phone = String.isNotBlank(role.Contact.MobilePhone) ? role.Contact.MobilePhone : role.Contact.Phone;
+                optedOut = role.Contact.Do_Not_WhatsApp__c;
+                contactLogId = role.ContactId;
             } else {
                 out.success = false;
-                out.errorMessage = 'Record type not supported. Use Contact or Lead.';
+                out.errorMessage = 'Record type not supported (use Contact, Lead, Account, Case, or Opportunity)';
                 return out;
             }
 
@@ -139,8 +177,8 @@ public with sharing class ZaptiloFlowAction {
                 Status__c = String.isBlank(api.status) ? 'sent' : api.status,
                 External_Id__c = api.externalId
             );
-            if (objectType == 'Contact') log.Contact__c = r.recordId;
-            if (objectType == 'Lead') log.Lead__c = r.recordId;
+            if (contactLogId != null) log.Contact__c = contactLogId;
+            if (leadLogId != null) log.Lead__c = leadLogId;
             insert log;
 
             out.success = true;
