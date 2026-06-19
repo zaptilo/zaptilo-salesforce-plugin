@@ -11,6 +11,9 @@
             <objects>
                 <object>Contact</object>
                 <object>Lead</object>
+                <object>Account</object>
+                <object>Case</object>
+                <object>Opportunity</object>
             </objects>
         </targetConfig>
     </targetConfigs>

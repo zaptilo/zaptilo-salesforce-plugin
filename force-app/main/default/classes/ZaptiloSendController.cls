@@ -10,6 +10,9 @@ public with sharing class ZaptiloSendController {
         @AuraEnabled public String phone;
         @AuraEnabled public Boolean optedOut;
         @AuraEnabled public String objectType;
+        // For Case / Opportunity / Account, the actual person we're texting may be a related Contact.
+        // Tracking that id here lets us thread the message log to the Contact for activity history.
+        @AuraEnabled public String linkedContactId;
     }
 
     /**
@@ -31,27 +34,72 @@ public with sharing class ZaptiloSendController {
             ctx.objectType = 'Contact';
             Contact c = [
                 SELECT Name, Phone, MobilePhone, Do_Not_WhatsApp__c
-                FROM Contact
-                WHERE Id = :rid
-                LIMIT 1
+                FROM Contact WHERE Id = :rid LIMIT 1
             ];
             ctx.name = c.Name;
             ctx.phone = String.isNotBlank(c.MobilePhone) ? c.MobilePhone : c.Phone;
             ctx.optedOut = c.Do_Not_WhatsApp__c;
+
         } else if (prefix == '00Q') {
             ctx.objectType = 'Lead';
             Lead l = [
                 SELECT Name, Phone, MobilePhone, Do_Not_WhatsApp__c
-                FROM Lead
-                WHERE Id = :rid
-                LIMIT 1
+                FROM Lead WHERE Id = :rid LIMIT 1
             ];
             ctx.name = l.Name;
             ctx.phone = String.isNotBlank(l.MobilePhone) ? l.MobilePhone : l.Phone;
             ctx.optedOut = l.Do_Not_WhatsApp__c;
+
+        } else if (prefix == '001') {
+            ctx.objectType = 'Account';
+            Account a = [SELECT Name, Phone FROM Account WHERE Id = :rid LIMIT 1];
+            ctx.name = a.Name;
+            ctx.phone = a.Phone;
+            ctx.optedOut = false; // Accounts don't carry the opt-out flag; rely on linked Contact's flag at agent's discretion.
+
+        } else if (prefix == '500') {
+            // Case → message the Case's Contact. Phone + opt-out come from that Contact.
+            ctx.objectType = 'Case';
+            Case cs = [
+                SELECT CaseNumber, ContactId, Contact.Name, Contact.Phone, Contact.MobilePhone, Contact.Do_Not_WhatsApp__c
+                FROM Case WHERE Id = :rid LIMIT 1
+            ];
+            if (cs.ContactId == null) {
+                throw new AuraHandledException(
+                    'This Case has no linked Contact. Add a Contact to the Case to send WhatsApp.'
+                );
+            }
+            ctx.name = cs.Contact.Name + ' (Case ' + cs.CaseNumber + ')';
+            ctx.phone = String.isNotBlank(cs.Contact.MobilePhone) ? cs.Contact.MobilePhone : cs.Contact.Phone;
+            ctx.optedOut = cs.Contact.Do_Not_WhatsApp__c;
+            ctx.linkedContactId = cs.ContactId;
+
+        } else if (prefix == '006') {
+            // Opportunity → message the primary OpportunityContactRole's Contact.
+            ctx.objectType = 'Opportunity';
+            Opportunity opp = [SELECT Name FROM Opportunity WHERE Id = :rid LIMIT 1];
+
+            List<OpportunityContactRole> roles = [
+                SELECT ContactId, IsPrimary, Contact.Name, Contact.Phone, Contact.MobilePhone, Contact.Do_Not_WhatsApp__c
+                FROM OpportunityContactRole
+                WHERE OpportunityId = :rid
+                ORDER BY IsPrimary DESC NULLS LAST
+                LIMIT 1
+            ];
+            if (roles.isEmpty()) {
+                throw new AuraHandledException(
+                    'This Opportunity has no Contact Roles. Add at least one Contact to send WhatsApp.'
+                );
+            }
+            OpportunityContactRole r = roles[0];
+            ctx.name = r.Contact.Name + ' (' + opp.Name + ')';
+            ctx.phone = String.isNotBlank(r.Contact.MobilePhone) ? r.Contact.MobilePhone : r.Contact.Phone;
+            ctx.optedOut = r.Contact.Do_Not_WhatsApp__c;
+            ctx.linkedContactId = r.ContactId;
+
         } else {
             throw new AuraHandledException(
-                'Send WhatsApp is only available on Contact and Lead records in this release.'
+                'Send WhatsApp is not available on this object type.'
             );
         }
 
@@ -111,6 +159,9 @@ public with sharing class ZaptiloSendController {
                 log.Contact__c = recordId;
             } else if (ctx.objectType == 'Lead') {
                 log.Lead__c = recordId;
+            } else if (String.isNotBlank(ctx.linkedContactId)) {
+                // Case / Opportunity → thread the log on the actual person we texted.
+                log.Contact__c = ctx.linkedContactId;
             }
             insert log;
 

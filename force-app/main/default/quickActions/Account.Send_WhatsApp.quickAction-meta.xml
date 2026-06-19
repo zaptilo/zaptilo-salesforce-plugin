@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Open the Zaptilo WhatsApp send modal for this Account's main phone.</description>
+    <isProtected>false</isProtected>
+    <label>Send WhatsApp</label>
+    <lightningWebComponent>zaptiloSendModal</lightningWebComponent>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <type>LightningWebComponent</type>
+    <width>50</width>
+</QuickAction>
