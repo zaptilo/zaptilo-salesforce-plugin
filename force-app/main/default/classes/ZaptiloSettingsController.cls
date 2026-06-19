@@ -52,6 +52,19 @@ public with sharing class ZaptiloSettingsController {
      * Round-trip the configured API token against /api/verify to confirm it works.
      * UI calls this after the user pastes a token to give them immediate feedback.
      */
+    /**
+     * Returns the list of WhatsApp connections in the Zaptilo workspace, so the Settings UI can
+     * render a dropdown instead of asking the admin to paste a UUID.
+     */
+    @AuraEnabled
+    public static List<Object> getWhatsappConnections() {
+        try {
+            return ZaptiloAPI.listWhatsappConnections();
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
     @AuraEnabled
     public static String testConnection() {
         try {

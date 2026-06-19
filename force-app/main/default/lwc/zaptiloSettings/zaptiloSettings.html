@@ -36,14 +36,33 @@
                     field-level-help="Leave the default unless you self-host Zaptilo."
                 ></lightning-input>
 
-                <lightning-input
-                    type="text"
-                    label="Default WABA / phone (optional)"
-                    value={defaultWaba}
-                    onchange={handleWabaChange}
-                    placeholder="Leave blank to use Zaptilo workspace default"
-                    class="slds-m-bottom_medium"
-                ></lightning-input>
+                <!-- Dropdown if we managed to fetch the WABA list; text input as fallback -->
+                <template if:true={hasWabaList}>
+                    <lightning-combobox
+                        name="defaultWaba"
+                        label="Default WABA"
+                        value={defaultWaba}
+                        options={wabaOptions}
+                        onchange={handleWabaChange}
+                        placeholder="Use workspace default"
+                        field-level-help="Which WhatsApp Business Account / phone number to send from. Affects which templates are eligible (templates are approved per WABA)."
+                        class="slds-m-bottom_medium"
+                    ></lightning-combobox>
+                </template>
+                <template if:false={hasWabaList}>
+                    <lightning-input
+                        type="text"
+                        label="Default WABA / phone (optional)"
+                        value={defaultWaba}
+                        onchange={handleWabaChange}
+                        placeholder="Leave blank to use Zaptilo workspace default"
+                        field-level-help="Paste a WhatsApp connection UUID from Zaptilo, or save the token + refresh to pick from a dropdown."
+                        class="slds-m-bottom_medium"
+                    ></lightning-input>
+                    <template if:true={wabaLoadError}>
+                        <p class="slds-text-color_weak slds-text-body_small slds-m-bottom_small">{wabaLoadError}</p>
+                    </template>
+                </template>
 
                 <div class="slds-text-align_right">
                     <lightning-button

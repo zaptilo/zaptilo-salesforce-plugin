@@ -3,6 +3,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import loadConfig from '@salesforce/apex/ZaptiloSettingsController.loadConfig';
 import saveConfig from '@salesforce/apex/ZaptiloSettingsController.saveConfig';
 import testConnection from '@salesforce/apex/ZaptiloSettingsController.testConnection';
+import getWhatsappConnections from '@salesforce/apex/ZaptiloSettingsController.getWhatsappConnections';
 
 export default class ZaptiloSettings extends LightningElement {
     @track loading = true;
@@ -13,6 +14,8 @@ export default class ZaptiloSettings extends LightningElement {
     @track baseUrl = 'https://web.zaptilo.ai';
     @track defaultWaba = '';
     @track maskedTokenHint = '';
+    @track wabaOptions = [];           // [{label, value}] for the lightning-combobox
+    @track wabaLoadError = '';
 
     connectedCallback() {
         this.bootstrap();
@@ -28,6 +31,11 @@ export default class ZaptiloSettings extends LightningElement {
             }
             this.baseUrl = dto.baseUrl || 'https://web.zaptilo.ai';
             this.defaultWaba = dto.defaultWaba || '';
+
+            // If a token is configured, fetch the WABA list so admins get a dropdown.
+            if (this.configured) {
+                await this.loadWabaList();
+            }
         } catch (e) {
             this.toast('Load failed', this.errMsg(e), 'error');
         } finally {
@@ -35,9 +43,36 @@ export default class ZaptiloSettings extends LightningElement {
         }
     }
 
+    async loadWabaList() {
+        this.wabaLoadError = '';
+        try {
+            const conns = await getWhatsappConnections();
+            this.wabaOptions = (conns || []).map((c) => ({
+                label: this.describeWaba(c),
+                value: c.uuid || c.id || ''
+            })).filter((o) => o.value);
+            if (this.wabaOptions.length === 0) {
+                this.wabaLoadError = 'No WhatsApp connections found in this Zaptilo workspace.';
+            }
+        } catch (e) {
+            this.wabaLoadError = 'Could not load WABA list: ' + this.errMsg(e);
+        }
+    }
+
+    describeWaba(c) {
+        const name = c.name || c.display_name || c.label || c.phone_number || 'WhatsApp connection';
+        const phone = c.phone_number || c.phone || '';
+        const type = c.type ? ` • ${c.type}` : '';
+        return phone ? `${name} (${phone})${type}` : `${name}${type}`;
+    }
+
+    get hasWabaList() {
+        return this.wabaOptions && this.wabaOptions.length > 0;
+    }
+
     handleTokenChange(e) { this.apiToken = e.target.value; }
     handleBaseUrlChange(e) { this.baseUrl = e.target.value; }
-    handleWabaChange(e) { this.defaultWaba = e.target.value; }
+    handleWabaChange(e) { this.defaultWaba = e.detail ? e.detail.value : e.target.value; }
 
     async handleSave() {
         this.saving = true;

@@ -77,6 +77,12 @@ public with sharing class ZaptiloAPI {
             'template' => template
         };
 
+        // Pass the WABA UUID if the admin pinned a Default_WABA__c — otherwise Zaptilo picks the workspace primary.
+        Zaptilo_Config__c cfg = Zaptilo_Config__c.getOrgDefaults();
+        if (cfg != null && String.isNotBlank(cfg.Default_WABA__c)) {
+            body.put('whatsapp_connection', cfg.Default_WABA__c.trim());
+        }
+
         return callPost('/api/send/template', body);
     }
 
@@ -112,6 +118,27 @@ public with sharing class ZaptiloAPI {
             'caption' => caption == null ? '' : caption
         };
         return callPost('/api/send/media', body);
+    }
+
+    /**
+     * Fetch the list of WhatsApp connections (WABAs / phone numbers) in the Zaptilo workspace.
+     * Used by the Settings page to populate the "Default WABA" picker so admins don't hand-paste UUIDs.
+     */
+    public static List<Object> listWhatsappConnections() {
+        Zaptilo_Config__c c = config();
+        HttpRequest req = baseRequest('/api/whatsapp-connections', 'GET', c);
+        HttpResponse res = new Http().send(req);
+        if (res.getStatusCode() < 200 || res.getStatusCode() >= 300) {
+            throw new ZaptiloException(
+                'Zaptilo API returned ' + res.getStatusCode() + ': ' + res.getBody()
+            );
+        }
+        Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
+        Object data = parsed.get('data');
+        if (data instanceof List<Object>) {
+            return (List<Object>) data;
+        }
+        return new List<Object>();
     }
 
     /**
